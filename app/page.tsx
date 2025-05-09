@@ -33,8 +33,7 @@ export default function ChatPage() {
   const webSocketRef = useRef<WebSocket | null>(null)
   const { toast } = useToast()
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const BACKEND_URL_PROD = "ws://localhost:8080/chat";
-  const BACKEND_URL_LOCAL = "ws://localhost:8080/chat";
+
   useEffect(() => {
     return () => {
       if (webSocketRef.current) {
@@ -60,7 +59,7 @@ export default function ChatPage() {
     }
 
     setIsConnecting(true)
-    const ws = new WebSocket(BACKEND_URL_LOCAL)
+    const ws = new WebSocket("wss://random-chat-application.onrender.com/chat")
 
     ws.onopen = () => {
       setIsConnected(true)
@@ -197,98 +196,104 @@ export default function ChatPage() {
             </Button>
           </CardFooter>
         </Card>
+        <div className="mt-6 text-sm text-muted-foreground">Made with ❤️ by Ankit Panchal</div>
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <div className="flex flex-col w-full md:w-3/4 h-full">
-        <div className="flex items-center justify-between p-4 bg-card shadow">
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold">Random Chat</h1>
-            <Badge variant={isConnected ? "success" : "destructive"} className="ml-2">
-              {isConnected ? "Connected" : "Disconnected"}
-            </Badge>
+    <div className="flex flex-col h-screen bg-background">
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col w-full md:w-3/4 h-full">
+          <div className="flex items-center justify-between p-4 bg-card shadow">
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-bold">Random Chat</h1>
+              <Badge variant={isConnected ? "success" : "destructive"} className="ml-2">
+                {isConnected ? "Connected" : "Disconnected"}
+              </Badge>
+            </div>
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {username.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-medium">{username}</span>
+              <Button variant="outline" size="sm" onClick={disconnectFromChat}>
+                Leave
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <ThemeToggle />
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {username.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="font-medium">{username}</span>
-            <Button variant="outline" size="sm" onClick={disconnectFromChat}>
-              Leave
-            </Button>
-          </div>
-        </div>
 
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4">
-            {messages.map((msg, index) => (
-              <div key={index} className={`flex ${msg.sender === username ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    msg.sender === username
-                      ? "bg-primary text-primary-foreground"
-                      : msg.type === "JOIN" || msg.type === "LEAVE"
-                        ? "bg-muted text-muted-foreground text-center italic w-full"
-                        : "bg-secondary text-secondary-foreground"
-                  }`}
-                >
-                  {msg.type !== "JOIN" && msg.type !== "LEAVE" && msg.sender !== username && (
-                    <div className="font-semibold text-xs mb-1">{msg.sender}</div>
-                  )}
-                  <div>{msg.content}</div>
-                  <div className="text-xs opacity-70 mt-1 text-right">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-4">
+              {messages.map((msg, index) => (
+                <div key={index} className={`flex ${msg.sender === username ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg p-3 ${
+                      msg.sender === username
+                        ? "bg-primary text-primary-foreground"
+                        : msg.type === "JOIN" || msg.type === "LEAVE"
+                          ? "bg-muted text-muted-foreground text-center italic w-full"
+                          : "bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {msg.type !== "JOIN" && msg.type !== "LEAVE" && msg.sender !== username && (
+                      <div className="font-semibold text-xs mb-1">{msg.sender}</div>
+                    )}
+                    <div>{msg.content}</div>
+                    <div className="text-xs opacity-70 mt-1 text-right">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
 
-        <div className="p-4 bg-card border-t border-border">
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Type a message..."
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              disabled={!isConnected}
-            />
-            <Button onClick={sendMessage} disabled={!isConnected || !messageInput.trim()}>
-              Send
-            </Button>
+          <div className="p-4 bg-card border-t border-border">
+            <div className="flex space-x-2">
+              <Input
+                placeholder="Type a message..."
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                disabled={!isConnected}
+              />
+              <Button onClick={sendMessage} disabled={!isConnected || !messageInput.trim()}>
+                Send
+              </Button>
+            </div>
           </div>
+        </div>
+
+        <div className="hidden md:flex md:w-1/4 flex-col border-l border-border bg-card">
+          <div className="p-4 border-b border-border">
+            <h2 className="font-semibold">Online Users ({onlineUsers.length})</h2>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-2">
+              {onlineUsers.map((user, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className={user === username ? "font-semibold" : ""}>
+                    {user} {user === username && "(You)"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       </div>
-
-      <div className="hidden md:flex md:w-1/4 flex-col border-l border-border bg-card">
-        <div className="p-4 border-b border-border">
-          <h2 className="font-semibold">Online Users ({onlineUsers.length})</h2>
-        </div>
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-2">
-            {onlineUsers.map((user, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <Avatar className="h-6 w-6">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className={user === username ? "font-semibold" : ""}>
-                  {user} {user === username && "(You)"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+      <div className="py-2 text-center text-sm text-muted-foreground bg-card border-t border-border">
+        Made with ❤️ by Ankit Panchal
       </div>
     </div>
   )

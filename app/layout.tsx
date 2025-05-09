@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Random Chat App",
+  title: "Thunder Chat App",
   description: "A simple random chat application",
 }
 
