@@ -20,6 +20,7 @@ public class ChatMessage {
     private String content;
     private String timestamp;
     private List<String> users;
+    private Boolean isGif;
 
     public enum MessageType {
         CHAT, JOIN, LEAVE, USERS, SYSTEM, PARTNER_CONNECTED, PARTNER_DISCONNECTED, FIND_NEW
@@ -32,6 +33,7 @@ public class ChatMessage {
                 .sender(sender)
                 .content(content)
                 .timestamp(LocalDateTime.now().toString())
+                .isGif(false) // Default to false
                 .build();
     }
     
@@ -41,6 +43,7 @@ public class ChatMessage {
                 .type(MessageType.USERS)
                 .users(users)
                 .timestamp(LocalDateTime.now().toString())
+                .isGif(false) // Default to false
                 .build();
     }
 }

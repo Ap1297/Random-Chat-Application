@@ -191,6 +191,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         sendDirectMessage(session2, user2Notification);
         
         // Send user list to both users (for UI purposes)
+        // Make sure each user gets a list with themselves and their partner
         List<String> user1List = new ArrayList<>();
         user1List.add(user1Name);
         user1List.add(user2Name);
@@ -198,8 +199,8 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         sendDirectMessage(session1, user1ListMessage);
         
         List<String> user2List = new ArrayList<>();
-        user2List.add(user1Name);
         user2List.add(user2Name);
+        user2List.add(user1Name);
         ChatMessage user2ListMessage = ChatMessage.createUsersMessage(user2List);
         sendDirectMessage(session2, user2ListMessage);
     }
@@ -237,14 +238,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         
-        // Send message to partner
+        // Send message to partner only, not back to sender
         sendDirectMessage(partnerSession, message);
         
-        // Also send back to sender for confirmation
-        WebSocketSession senderSession = sessions.get(senderSessionId);
-        if (senderSession != null && senderSession.isOpen()) {
-            sendDirectMessage(senderSession, message);
-        }
+        // Do not send back to sender - the frontend will handle displaying the message
     }
 
     @Override
