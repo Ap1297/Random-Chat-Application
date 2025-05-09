@@ -22,7 +22,7 @@ public class ChatMessage {
     private List<String> users;
 
     public enum MessageType {
-        CHAT, JOIN, LEAVE, USERS
+        CHAT, JOIN, LEAVE, USERS, SYSTEM, PARTNER_CONNECTED, PARTNER_DISCONNECTED, FIND_NEW
     }
 
     public static ChatMessage createMessage(MessageType type, String sender, String content) {
