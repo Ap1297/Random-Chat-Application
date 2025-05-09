@@ -1,0 +1,8 @@
+com\example\randomchat\controller\ChatController.class
+com\example\randomchat\config\WebSocketConfig.class
+com\example\randomchat\model\ChatMessage$ChatMessageBuilder.class
+com\example\randomchat\RandomChatApplication.class
+com\example\randomchat\handler\ChatWebSocketHandler.class
+com\example\randomchat\model\ChatMessage$MessageType.class
+com\example\randomchat\model\ChatMessage.class
+com\example\randomchat\config\CorsConfig.class
