@@ -58,7 +58,8 @@ export default function ChatPage() {
   // Update the constants to make it easier to switch between environments
   const BACKEND_PROD = "wss://random-chat-application.onrender.com/chat"
   const BACKEND_LOCAL = "ws://localhost:8080/chat"
-
+  // Use local backend for development, production for deployment
+  const BACKEND_URL = process.env.NODE_ENV === "development" ? BACKEND_LOCAL : BACKEND_PROD
   const GIPHY_API_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65" // Replace with your Giphy API key
 
   useEffect(() => {
@@ -119,13 +120,13 @@ export default function ChatPage() {
     }
 
     // Add this console log before creating the WebSocket
-    console.log("Creating WebSocket connection to:", BACKEND_PROD)
+    console.log("Creating WebSocket connection to:", BACKEND_URL)
     setIsConnecting(true)
     setIsWaitingForPartner(true)
 
     try {
       // Use the appropriate backend URL
-      const ws = new WebSocket(BACKEND_PROD)
+      const ws = new WebSocket(BACKEND_URL)
 
       // Add error handling for WebSocket creation
       ws.onerror = (error) => {
@@ -479,11 +480,14 @@ export default function ChatPage() {
 
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Thunder Chat</h1>
-            <p className="text-gray-600 dark:text-gray-400">Connect anonymously with random people around the world</p>
+            <p className="text-muted-foreground">Connect anonymously with random people around the world</p>
           </div>
 
           <Card className="w-full shadow-lg">
