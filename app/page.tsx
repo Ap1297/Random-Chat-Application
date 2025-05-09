@@ -207,7 +207,7 @@ export default function ChatPage() {
         <div className="flex flex-col w-full md:w-3/4 h-full">
           <div className="flex items-center justify-between p-4 bg-card shadow">
             <div className="flex items-center space-x-2">
-              <h1 className="text-xl font-bold">Random Chat</h1>
+              <h1 className="text-xl font-bold">Thunder Chat</h1>
               <Badge variant={isConnected ? "success" : "destructive"} className="ml-2">
                 {isConnected ? "Connected" : "Disconnected"}
               </Badge>
