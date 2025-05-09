@@ -555,7 +555,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <div className="flex items-center justify-between p-4 bg-card shadow sticky top-0 z-10">
+      <div className="flex items-center justify-between p-4 bg-card shadow fixed top-0 left-0 right-0 z-10">
         <div className="flex items-center space-x-2">
           <h1 className="text-xl font-bold">Thunder Chat</h1>
           <Badge variant={isConnected ? "success" : "destructive"} className="ml-2">
@@ -565,12 +565,27 @@ export default function ChatPage() {
         <div className="flex items-center space-x-2">
           <ThemeToggle />
 
+          {/* Mobile Find New Partner button */}
+          <div className="block md:hidden">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={findNewPartner}
+              disabled={!isConnected || isWaitingForPartner}
+              className="mr-2"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              <span className="sr-only md:not-sr-only">New</span>
+            </Button>
+          </div>
+
           {/* Mobile drawer for partner info */}
           <div className="block md:hidden">
             <Drawer>
               <DrawerTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <UserRound className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="relative flex items-center">
+                  <UserRound className="h-4 w-4 mr-1" />
+                  <span className="sr-only md:not-sr-only">Info</span>
                 </Button>
               </DrawerTrigger>
               <DrawerContent>
@@ -636,7 +651,7 @@ export default function ChatPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col w-full h-full">
-          <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+          <ScrollArea className="flex-1 p-4 mt-16 mb-20" ref={scrollAreaRef}>
             <div className="space-y-4">
               {messages.map((msg, index) => (
                 <div
@@ -708,7 +723,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div className="p-4 bg-card border-t border-border sticky bottom-0">
+          <div className="p-4 bg-card border-t border-border fixed bottom-0 left-0 right-0 z-10">
             <div className="flex flex-col space-y-2">
               <div className="flex space-x-2">
                 <div className="flex-1 flex space-x-2">
