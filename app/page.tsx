@@ -33,7 +33,8 @@ export default function ChatPage() {
   const webSocketRef = useRef<WebSocket | null>(null)
   const { toast } = useToast()
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
+  const BACKEND_URL_PROD = "ws://localhost:8080/chat";
+  const BACKEND_URL_LOCAL = "ws://localhost:8080/chat";
   useEffect(() => {
     return () => {
       if (webSocketRef.current) {
@@ -59,7 +60,7 @@ export default function ChatPage() {
     }
 
     setIsConnecting(true)
-    const ws = new WebSocket("ws://localhost:8080/chat")
+    const ws = new WebSocket(BACKEND_URL_LOCAL)
 
     ws.onopen = () => {
       setIsConnected(true)
