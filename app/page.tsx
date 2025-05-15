@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, UserRound, RefreshCw, Smile, ImageIcon, MessageSquare } from "lucide-react"
+import { Loader2, UserRound, RefreshCw, Smile, ImageIcon, MessageSquare, X, Trash2 } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer"
 import data from "@emoji-mart/data"
@@ -38,6 +38,14 @@ interface ChatMessage {
   isLocal?: boolean
 }
 
+interface InAppNotification {
+  id: string
+  type: "success" | "warning" | "error" | "info"
+  message: string
+  timestamp: number
+  key?: string
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState("")
@@ -51,16 +59,30 @@ export default function ChatPage() {
   const [giphySearchTerm, setGiphySearchTerm] = useState("")
   const [giphyResults, setGiphyResults] = useState<any[]>([])
   const [isSearchingGiphy, setIsSearchingGiphy] = useState(false)
+  const [inAppNotifications, setInAppNotifications] = useState<InAppNotification[]>([])
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
+  // NEW: Single system message state
+  const [systemMessage, setSystemMessage] = useState<string | null>(null)
+  // NEW: Debug mode
   const webSocketRef = useRef<WebSocket | null>(null)
   const { toast } = useToast()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Store the username in a ref to avoid closure issues
+  const usernameRef = useRef<string>("")
   // Update the constants to make it easier to switch between environments
   const BACKEND_PROD = "wss://random-chat-application.onrender.com/chat"
   const BACKEND_LOCAL = "ws://localhost:8080/chat"
   // Use local backend for development, production for deployment
   const BACKEND_URL = process.env.NODE_ENV === "development" ? BACKEND_LOCAL : BACKEND_PROD
   const GIPHY_API_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65" // Replace with your Giphy API key
+  const systemMessageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Update username ref when username changes
+  useEffect(() => {
+    usernameRef.current = username
+  }, [username])
 
   useEffect(() => {
     return () => {
@@ -76,51 +98,100 @@ export default function ChatPage() {
     }
   }, [messages])
 
-  // Auto-scroll when keyboard appears on mobile
+  // Handle keyboard visibility on mobile
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768 && messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    // Function to detect keyboard visibility
+    const detectKeyboard = () => {
+      // On mobile, when keyboard appears, the viewport height decreases
+      const isKeyboard = window.innerHeight < window.outerHeight * 0.75
+      setIsKeyboardVisible(isKeyboard)
+
+      // If keyboard is visible, scroll to the input field
+      if (isKeyboard && inputRef.current) {
+        setTimeout(() => {
+          inputRef.current?.focus()
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        }, 100)
       }
     }
 
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
+    // Listen for resize events which happen when keyboard appears/disappears
+    window.addEventListener("resize", detectKeyboard)
+
+    // Initial check
+    detectKeyboard()
+
+    return () => {
+      window.removeEventListener("resize", detectKeyboard)
+    }
   }, [])
 
-  // Handle system messages with auto-removal
+  // Auto-scroll when new messages arrive
   useEffect(() => {
-    const systemMessages = messages.filter(
-      (msg) => msg.type === "PARTNER_CONNECTED" || msg.type === "PARTNER_DISCONNECTED" || msg.type === "SYSTEM",
-    )
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [messages])
 
-    if (systemMessages.length > 0) {
-      const timeoutIds = systemMessages.map((msg) => {
+  // Add in-app notification
+  const addInAppNotification = (type: "success" | "warning" | "error" | "info", message: string) => {
+    // Generate a unique key for this notification type + message combination
+    const notificationKey = `${type}-${message}`
+
+    // Create the new notification
+    const newNotification: InAppNotification = {
+      id: Date.now().toString(),
+      type,
+      message,
+      timestamp: Date.now(),
+      // Add a key property to help with deduplication
+      key: notificationKey,
+    }
+
+    setInAppNotifications((prev) => {
+      // Remove any existing notification with the same key
+      const filteredNotifications = prev.filter((n) => n.key !== notificationKey)
+
+      // Add the new notification and keep only the most recent one
+      return [...filteredNotifications, newNotification].slice(-1)
+    })
+  }
+
+  // Handle in-app notifications auto-removal
+  useEffect(() => {
+    if (inAppNotifications.length > 0) {
+      const timeoutIds = inAppNotifications.map((notification) => {
         return setTimeout(() => {
-          setMessages((prev) => prev.filter((m) => m !== msg))
-        }, 5000) // Remove after 5 seconds
+          setInAppNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+        }, 3000) // Remove after 3 seconds
       })
 
       return () => {
         timeoutIds.forEach((id) => clearTimeout(id))
       }
     }
-  }, [messages])
+  }, [inAppNotifications])
+
+  // NEW: Update system message with auto-removal
+  const updateSystemMessage = (message: string) => {
+    console.log("Setting system message:", message)
+
+    // Clear any existing timeout for system message
+    if (systemMessageTimeoutRef.current) {
+      clearTimeout(systemMessageTimeoutRef.current)
+    }
+
+    setSystemMessage(message)
+  }
 
   const connectToChat = () => {
-    console.log("Connect to chat function called")
     if (!usernameInput.trim()) {
       console.log("Username is empty")
-      toast({
-        title: "Username required",
-        description: "Please enter a username to start chatting",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Username required")
       return
     }
 
     // Add this console log before creating the WebSocket
-    console.log("Creating WebSocket connection to:", BACKEND_URL)
     setIsConnecting(true)
     setIsWaitingForPartner(true)
 
@@ -133,22 +204,18 @@ export default function ChatPage() {
         console.error("WebSocket error:", error)
         setIsConnecting(false)
         setIsWaitingForPartner(false)
-        toast({
-          title: "Connection error",
-          description: "Failed to connect to the chat server",
-          variant: "destructive",
-        })
+        addInAppNotification("error", "Failed to connect to chat server")
       }
 
       ws.onopen = () => {
-        console.log("WebSocket connection opened successfully")
         setIsConnected(true)
         setIsConnecting(false)
+
+        // Set username state and ref
         setUsername(usernameInput)
-        toast({
-          title: "Connected!",
-          description: `Looking for someone to chat with...`,
-        })
+        usernameRef.current = usernameInput
+
+        addInAppNotification("success", "Connected! Looking for a chat partner...")
 
         // Send join message
         const joinMessage = {
@@ -160,78 +227,73 @@ export default function ChatPage() {
 
         try {
           ws.send(JSON.stringify(joinMessage))
-          console.log("Join message sent:", joinMessage)
         } catch (error) {
           console.error("Error sending join message:", error)
         }
 
-        // Add a waiting message
-        setMessages([
-          {
-            type: "WAITING",
-            sender: "system",
-            content: "Waiting for someone to connect...",
-            timestamp: new Date().toISOString(),
-          },
-        ])
+        // Update system message
+        updateSystemMessage("Waiting for a chat partner...")
       }
 
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data)
-          console.log("Received message:", message)
 
           if (message.type === "USERS") {
             // For 1-on-1 chat, we'll use this to determine if we have a partner
             if (message.users && message.users.length === 2) {
-              const partner = message.users.find((user: string) => user !== usernameInput)
-              if (partner) {
+              // Use the current username from the ref to ensure we have the latest value
+              const currentUsername = usernameRef.current
+              const partner = message.users.find((user: string) => user !== currentUsername)
+
+              if (partner && !partnerName) {
+                // Only update if we don't already have a partner
                 setPartnerName(partner)
                 setIsWaitingForPartner(false)
-
-                // Show toast instead of adding to messages
-                toast({
-                  title: "Partner found!",
-                  description: `You are now chatting with ${partner}`,
-                })
+                addInAppNotification("success", `Now chatting with ${partner}`)
+                updateSystemMessage(`You are now chatting with ${partner}`)
               }
             }
           } else if (message.type === "PARTNER_CONNECTED") {
             // Direct notification that a partner has connected
+            // Extract the partner username from the message content
             const partnerUsername = message.content.replace("You are now chatting with ", "")
 
+            // Use the current username from the ref to ensure we have the latest value
+            const currentUsername = usernameRef.current
+
+            console.log("PARTNER_CONNECTED message received:", message)
+            console.log("Current username (ref):", currentUsername)
+            console.log("Extracted partner username:", partnerUsername)
+
             // Make sure we don't set ourselves as the partner
-            if (partnerUsername !== usernameInput) {
+            if (partnerUsername !== currentUsername) {
               setPartnerName(partnerUsername)
               setIsWaitingForPartner(false)
+              addInAppNotification("success", `Now chatting with ${partnerUsername}`)
 
-              // Show toast instead of adding to messages
-              toast({
-                title: "Partner found!",
-                description: message.content,
-              })
+              // Update system message and ensure it's visible
+              updateSystemMessage(`You are now chatting with ${partnerUsername}`)
 
-              // Also add to messages but it will auto-remove
-              setMessages((prev) => [
-                ...prev.filter((msg) => msg.type !== "WAITING"), // Remove waiting message
-                message,
-              ])
+              // Force system message to stay visible longer for connection notifications
+              const timeoutId = setTimeout(() => {
+                setSystemMessage(null)
+              }, 15000) // Keep visible for 15 seconds
+
+              console.log("Partner connected notification processed successfully")
             }
           } else if (message.type === "PARTNER_DISCONNECTED") {
             // Partner disconnected
-            setMessages((prev) => [...prev, message])
             setPartnerName(null)
             setIsWaitingForPartner(true)
-
-            toast({
-              title: "Partner disconnected",
-              description: "Looking for a new partner...",
-              variant: "destructive",
-            })
+            addInAppNotification("warning", "Partner disconnected. Looking for a new partner...")
+            updateSystemMessage("Looking for a new chat partner...")
           } else if (message.type === "CHAT") {
             // Only add messages from the partner, not our own messages
             // Our own messages are added locally when we send them
-            if (message.sender !== username) {
+            const currentUsername = usernameRef.current
+            if (message.sender !== currentUsername) {
+              // Add the message to the chat history
               setMessages((prev) => [...prev, message])
 
               // Auto-scroll to bottom when new message arrives
@@ -242,8 +304,8 @@ export default function ChatPage() {
               }, 100)
             }
           } else if (message.type === "SYSTEM") {
-            // System messages
-            setMessages((prev) => [...prev, message])
+            // System messages - update the system message state
+            updateSystemMessage(message.content)
           }
         } catch (error) {
           console.error("Error processing received message:", error)
@@ -255,11 +317,8 @@ export default function ChatPage() {
         setIsConnected(false)
         setIsConnecting(false)
         setIsWaitingForPartner(false)
-        toast({
-          title: "Disconnected",
-          description: "You have been disconnected from the chat",
-          variant: "destructive",
-        })
+        addInAppNotification("error", "Disconnected from chat server")
+        setSystemMessage(null)
       }
 
       webSocketRef.current = ws
@@ -267,84 +326,64 @@ export default function ChatPage() {
       console.error("Error creating WebSocket:", error)
       setIsConnecting(false)
       setIsWaitingForPartner(false)
-      toast({
-        title: "Connection error",
-        description: "Failed to create WebSocket connection",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Failed to create connection")
     }
   }
 
   const findNewPartner = () => {
     if (!isConnected || !webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) {
       console.error("Cannot find new partner: WebSocket not connected")
-      toast({
-        title: "Connection error",
-        description: "Not connected to chat server",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Not connected to chat server")
       return
     }
 
     setPartnerName(null)
     setIsWaitingForPartner(true)
-    setMessages([
-      {
-        type: "WAITING",
-        sender: "system",
-        content: "Looking for a new partner...",
-        timestamp: new Date().toISOString(),
-      },
-    ])
+
+    // Update system message
+    updateSystemMessage("Looking for a new chat partner...")
 
     // Send a message to find a new partner
     const findNewMessage = {
       type: "FIND_NEW",
-      sender: username,
-      content: `${username} is looking for a new partner`,
+      sender: usernameRef.current,
+      content: `${usernameRef.current} is looking for a new partner`,
       timestamp: new Date().toISOString(),
     }
 
     try {
       webSocketRef.current.send(JSON.stringify(findNewMessage))
-      console.log("Find new partner message sent:", findNewMessage)
-
-      toast({
-        title: "Finding new partner",
-        description: "Please wait while we find someone new to chat with...",
-      })
+      addInAppNotification("info", "Finding a new partner...")
     } catch (error) {
       console.error("Error sending find new partner message:", error)
-      toast({
-        title: "Error",
-        description: "Failed to find a new partner",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Failed to find a new partner")
     }
   }
 
-  const sendMessage = (content = messageInput, isGif = false) => {
-    console.log("Sending message:", content, "isGif:", isGif)
+  const clearChat = () => {
+    // Clear all messages
+    setMessages([])
+    addInAppNotification("info", "Chat cleared")
+  }
 
+  const sendMessage = (content = messageInput, isGif = false) => {
     if ((!content.trim() && !isGif) || !isConnected || isWaitingForPartner) {
-      console.log("Cannot send message: empty content or not connected or waiting for partner")
       return
     }
 
     if (!webSocketRef.current || webSocketRef.current.readyState !== WebSocket.OPEN) {
       console.error("Cannot send message: WebSocket not connected")
-      toast({
-        title: "Connection error",
-        description: "Not connected to chat server",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Not connected to chat server")
       return
     }
 
-    // Create a message object
+    // Use the current username from the ref to ensure we have the latest value
+    const currentUsername = usernameRef.current
+
+    // Create a message object with the current username from ref
     const message: ChatMessage = {
       type: "CHAT",
-      sender: username,
+      sender: currentUsername,
       content: content,
       timestamp: new Date().toISOString(),
       isGif: isGif,
@@ -362,21 +401,20 @@ export default function ChatPage() {
         }),
       )
 
-      console.log("Message sent successfully:", message)
-
       // Add the message locally to ensure it appears immediately
       setMessages((prev) => [...prev, message])
 
       // Only clear input and hide GIF search if the message was sent successfully
       setMessageInput("")
       setShowGiphySearch(false)
+
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      }, 100)
     } catch (error) {
       console.error("Error sending message:", error)
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Failed to send message")
     }
   }
 
@@ -395,6 +433,7 @@ export default function ChatPage() {
       setUsername("")
       setPartnerName(null)
       setIsWaitingForPartner(false)
+      setSystemMessage(null)
       return
     }
 
@@ -402,13 +441,12 @@ export default function ChatPage() {
       // Send leave message
       const leaveMessage = {
         type: "LEAVE",
-        sender: username,
-        content: `${username} has left the chat`,
+        sender: usernameRef.current,
+        content: `${usernameRef.current} has left the chat`,
         timestamp: new Date().toISOString(),
       }
 
       webSocketRef.current.send(JSON.stringify(leaveMessage))
-      console.log("Leave message sent:", leaveMessage)
 
       // Close the connection
       webSocketRef.current.close()
@@ -419,11 +457,9 @@ export default function ChatPage() {
       setUsername("")
       setPartnerName(null)
       setIsWaitingForPartner(false)
+      setSystemMessage(null)
 
-      toast({
-        title: "Disconnected",
-        description: "You have left the chat",
-      })
+      addInAppNotification("info", "You have left the chat")
     } catch (error) {
       console.error("Error disconnecting:", error)
 
@@ -437,12 +473,9 @@ export default function ChatPage() {
       setUsername("")
       setPartnerName(null)
       setIsWaitingForPartner(false)
+      setSystemMessage(null)
 
-      toast({
-        title: "Error",
-        description: "There was an error while disconnecting",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Error while disconnecting")
     }
   }
 
@@ -460,11 +493,7 @@ export default function ChatPage() {
       setGiphyResults(data.data)
     } catch (error) {
       console.error("Error searching Giphy:", error)
-      toast({
-        title: "Error",
-        description: "Failed to search for GIFs",
-        variant: "destructive",
-      })
+      addInAppNotification("error", "Failed to search for GIFs")
     } finally {
       setIsSearchingGiphy(false)
     }
@@ -478,10 +507,36 @@ export default function ChatPage() {
     setMessageInput((prev) => prev + emoji.native)
   }
 
+  const removeNotification = (id: string) => {
+    setInAppNotifications((prev) => prev.filter((notification) => notification.id !== id))
+  }
+
+  // Toggle debug mode
+
+  // Handle system message auto-removal
+  useEffect(() => {
+    if (systemMessage) {
+      // For connection messages, keep them visible longer
+      const isConnectionMessage = systemMessage.includes("You are now chatting with")
+      const timeout = isConnectionMessage ? 15000 : 8000
+
+      systemMessageTimeoutRef.current = setTimeout(() => {
+        console.log("Auto-removing system message:", systemMessage)
+        setSystemMessage(null)
+      }, timeout)
+
+      return () => {
+        if (systemMessageTimeoutRef.current) {
+          clearTimeout(systemMessageTimeoutRef.current)
+        }
+      }
+    }
+  }, [systemMessage])
+
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4 flex space-x-2">
           <ThemeToggle />
         </div>
         <div className="w-full max-w-md">
@@ -549,6 +604,33 @@ export default function ChatPage() {
 
           <div className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">Made with ❤️ by Ankit Panchal</div>
         </div>
+
+        {/* In-app notifications */}
+        <div className="fixed bottom-4 left-0 right-0 flex flex-col items-center space-y-2 z-50 pointer-events-none">
+          {inAppNotifications.map((notification) => (
+            <div
+              key={notification.id}
+              className={`flex items-center justify-between px-4 py-2 rounded-full shadow-md max-w-xs animate-in fade-in slide-in-from-bottom-5 pointer-events-auto
+                ${
+                  notification.type === "success"
+                    ? "bg-green-500 text-white"
+                    : notification.type === "error"
+                      ? "bg-red-500 text-white"
+                      : notification.type === "warning"
+                        ? "bg-yellow-500 text-white"
+                        : "bg-blue-500 text-white"
+                }`}
+            >
+              <span className="text-sm font-medium">{notification.message}</span>
+              <button
+                onClick={() => removeNotification(notification.id)}
+                className="ml-2 text-white opacity-70 hover:opacity-100"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -563,7 +645,14 @@ export default function ChatPage() {
           </Badge>
         </div>
         <div className="flex items-center space-x-2">
+          {/* Debug mode toggle */}
+
           <ThemeToggle />
+
+          {/* Clear chat button */}
+          <Button variant="outline" size="sm" onClick={clearChat} className="mr-2" title="Clear chat history">
+            <Trash2 className="h-4 w-4" />
+          </Button>
 
           {/* Mobile Find New Partner button */}
           <div className="block md:hidden">
@@ -625,6 +714,11 @@ export default function ChatPage() {
                         Find New Partner
                       </Button>
 
+                      <Button variant="outline" className="w-full" onClick={clearChat}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Clear Chat
+                      </Button>
+
                       <Button variant="destructive" className="w-full" onClick={disconnectFromChat}>
                         Disconnect
                       </Button>
@@ -649,46 +743,53 @@ export default function ChatPage() {
         </div>
       </div>
 
+      {/* NEW: System message banner */}
+      {systemMessage && (
+        <div className="fixed top-16 left-0 right-0 bg-muted text-muted-foreground text-center py-2 z-10">
+          <p className="italic">{systemMessage}</p>
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col w-full h-full">
-          <ScrollArea className="flex-1 p-4 mt-16 mb-20" ref={scrollAreaRef}>
+          <ScrollArea
+            className={`flex-1 p-4 ${systemMessage ? "mt-24" : "mt-16"} ${isKeyboardVisible ? "mb-24" : "mb-20"}`}
+            ref={scrollAreaRef}
+          >
             <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex ${msg.sender === username ? "justify-end" : msg.sender === "system" ? "justify-center" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      msg.sender === username
-                        ? "bg-primary text-primary-foreground"
-                        : msg.sender === "system"
-                          ? "bg-muted text-muted-foreground text-center italic w-full max-w-md"
+              {messages
+                .filter((msg) => msg.type === "CHAT") // Only show chat messages, not system messages
+                .map((msg, index) => (
+                  <div key={index} className={`flex ${msg.sender === username ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        msg.sender === username
+                          ? "bg-primary text-primary-foreground"
                           : "bg-secondary text-secondary-foreground"
-                    }`}
-                  >
-                    {msg.sender !== "system" && msg.sender !== username && (
-                      <div className="font-semibold text-xs mb-1">{msg.sender}</div>
-                    )}
-                    {msg.isGif ? (
-                      <img src={msg.content || "/placeholder.svg"} alt="GIF" className="rounded-md max-w-full h-auto" />
-                    ) : (
-                      <div>{msg.content}</div>
-                    )}
-                    {msg.sender !== "system" && (
+                      }`}
+                    >
+                      {msg.sender !== username && <div className="font-semibold text-xs mb-1">{msg.sender}</div>}
+                      {msg.isGif ? (
+                        <img
+                          src={msg.content || "/placeholder.svg"}
+                          alt="GIF"
+                          className="rounded-md max-w-full h-auto"
+                        />
+                      ) : (
+                        <div>{msg.content}</div>
+                      )}
                       <div className="text-xs opacity-70 mt-1 text-right">
                         {new Date(msg.timestamp).toLocaleTimeString()}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
           {showGiphySearch && (
-            <div className="p-4 bg-card border-t border-border">
+            <div className="p-4 bg-card border-t border-border fixed bottom-20 left-0 right-0 z-20">
               <div className="space-y-4">
                 <div className="flex space-x-2">
                   <Input
@@ -754,10 +855,17 @@ export default function ChatPage() {
                   </Button>
 
                   <Input
+                    ref={inputRef}
                     placeholder={isWaitingForPartner ? "Waiting for a partner..." : "Type a message..."}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={handleKeyPress}
+                    onFocus={() => {
+                      // When input is focused, scroll to bottom
+                      setTimeout(() => {
+                        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+                      }, 300)
+                    }}
                     disabled={!isConnected || isWaitingForPartner}
                     className="flex-1"
                   />
@@ -808,9 +916,41 @@ export default function ChatPage() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Find New Partner
               </Button>
+
+              <Button variant="outline" className="w-full" onClick={clearChat}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Clear Chat
+              </Button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* In-app notifications */}
+      <div className="fixed bottom-24 left-0 right-0 flex flex-col items-center space-y-2 z-50 pointer-events-none">
+        {inAppNotifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`flex items-center justify-between px-4 py-2 rounded-full shadow-md max-w-xs animate-in fade-in slide-in-from-bottom-5 pointer-events-auto
+              ${
+                notification.type === "success"
+                  ? "bg-green-500 text-white"
+                  : notification.type === "error"
+                    ? "bg-red-500 text-white"
+                    : notification.type === "warning"
+                      ? "bg-yellow-500 text-white"
+                      : "bg-blue-500 text-white"
+              }`}
+          >
+            <span className="text-sm font-medium">{notification.message}</span>
+            <button
+              onClick={() => removeNotification(notification.id)}
+              className="ml-2 text-white opacity-70 hover:opacity-100"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
       </div>
 
       <div className="py-2 text-center text-sm text-muted-foreground bg-card border-t border-border">
