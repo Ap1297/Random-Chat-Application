@@ -12,6 +12,13 @@ import { MessageInput } from "@/components/chat/message-input"
 import { PartnerSidebar } from "@/components/chat/partner-sidebar"
 import { NotificationList } from "@/components/chat/notification-list"
 
+// Add this near the top of the file, after imports
+declare global {
+  interface Window {
+    originalWindowHeight?: number
+  }
+}
+
 interface InAppNotification {
   id: string
   type: "success" | "warning" | "error" | "info"
@@ -96,11 +103,32 @@ export default function ChatPage() {
 
   // Handle keyboard visibility on mobile
   useEffect(() => {
-    // Function to detect keyboard visibility
+    // More reliable keyboard detection
     const detectKeyboard = () => {
-      // On mobile, when keyboard appears, the viewport height decreases
-      const isKeyboard = window.innerHeight < window.outerHeight * 0.75
-      setIsKeyboardVisible(isKeyboard)
+      // Store original window height on first load
+      if (!window.originalWindowHeight) {
+        window.originalWindowHeight = window.innerHeight
+      }
+
+      // Consider keyboard visible if height is significantly reduced
+      const heightReduction = window.originalWindowHeight - window.innerHeight
+      const isKeyboard = heightReduction > 150 // Threshold for keyboard
+
+      if (isKeyboardVisible !== isKeyboard) {
+        setIsKeyboardVisible(isKeyboard)
+
+        // When keyboard appears/disappears, prevent unwanted scrolling
+        if (isKeyboard) {
+          // Lock body scroll position
+          document.body.style.overflow = "hidden"
+          document.body.style.position = "fixed"
+          document.body.style.width = "100%"
+        } else {
+          // Restore normal scrolling
+          document.body.style.overflow = ""
+          document.body.style.position = ""
+        }
+      }
     }
 
     // Listen for resize events which happen when keyboard appears/disappears
@@ -111,8 +139,11 @@ export default function ChatPage() {
 
     return () => {
       window.removeEventListener("resize", detectKeyboard)
+      // Restore normal scrolling on unmount
+      document.body.style.overflow = ""
+      document.body.style.position = ""
     }
-  }, [])
+  }, [isKeyboardVisible])
 
   // Handle connection
   const handleConnect = (usernameInput: string) => {

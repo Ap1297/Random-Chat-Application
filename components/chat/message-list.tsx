@@ -14,13 +14,50 @@ interface MessageListProps {
 export function MessageList({ messages, username, systemMessage, isKeyboardVisible }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const lastScrollPosition = useRef(0)
+
+  // Store scroll position when keyboard appears
+  useEffect(() => {
+    if (isKeyboardVisible) {
+      // Store current scroll position if we have access to the DOM
+      const scrollContainer = document.querySelector("[data-radix-scroll-area-viewport]")
+      if (scrollContainer) {
+        lastScrollPosition.current = scrollContainer.scrollTop
+      }
+    }
+  }, [isKeyboardVisible])
+
+  // Restore scroll position after keyboard appears
+  useEffect(() => {
+    if (isKeyboardVisible) {
+      const restoreScroll = () => {
+        const scrollContainer = document.querySelector("[data-radix-scroll-area-viewport]")
+        if (scrollContainer && lastScrollPosition.current > 0) {
+          scrollContainer.scrollTop = lastScrollPosition.current
+        }
+      }
+
+      // Use multiple timeouts to ensure it works across different devices
+      const timers = [setTimeout(restoreScroll, 50), setTimeout(restoreScroll, 100), setTimeout(restoreScroll, 300)]
+
+      return () => timers.forEach((timer) => clearTimeout(timer))
+    }
+  }, [isKeyboardVisible])
 
   // Auto-scroll when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      // Use a small delay to ensure layout is complete
+      const scrollTimer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: isKeyboardVisible ? "auto" : "smooth",
+          block: "end",
+        })
+      }, 100)
+
+      return () => clearTimeout(scrollTimer)
     }
-  }, [messages])
+  }, [messages, isKeyboardVisible])
 
   return (
     <>
@@ -59,7 +96,7 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
                 </div>
               </div>
             ))}
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} id="messages-end" />
         </div>
       </ScrollArea>
     </>

@@ -129,11 +129,22 @@ export function MessageInput({ onSendMessage, isConnected, isWaitingForPartner }
                 onChange={(e) => setMessageInput(e.target.value)}
                 onKeyDown={handleKeyPress}
                 onFocus={() => {
-                  // When input is focused, scroll to bottom
+                  // When input is focused, scroll to bottom with a delay
+                  // but don't use smooth scrolling which can cause issues
                   setTimeout(() => {
                     const messagesEnd = document.getElementById("messages-end")
-                    messagesEnd?.scrollIntoView({ behavior: "smooth" })
-                  }, 300)
+                    if (messagesEnd) {
+                      // Use direct DOM scrolling to avoid animation issues
+                      const scrollContainer = document.querySelector("[data-radix-scroll-area-viewport]")
+                      if (scrollContainer) {
+                        const scrollHeight = scrollContainer.scrollHeight
+                        scrollContainer.scrollTop = scrollHeight
+                      } else {
+                        // Fallback to scrollIntoView
+                        messagesEnd.scrollIntoView({ behavior: "auto", block: "end" })
+                      }
+                    }
+                  }, 100)
                 }}
                 disabled={!isConnected || isWaitingForPartner}
                 className="flex-1"
