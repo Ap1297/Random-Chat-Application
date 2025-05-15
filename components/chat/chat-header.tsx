@@ -27,7 +27,7 @@ export function ChatHeader({
   onClearChat,
 }: ChatHeaderProps) {
   return (
-    <div className="flex items-center justify-between p-4 bg-card shadow fixed top-0 left-0 right-0 z-10 w-full">
+    <div className="flex items-center justify-between p-4 bg-card shadow z-10 w-full">
       <div className="flex items-center space-x-2">
         <h1 className="text-xl font-bold">Thunder Chat</h1>
         <Badge variant={isConnected ? "success" : "destructive"} className="ml-2">

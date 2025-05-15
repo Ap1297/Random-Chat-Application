@@ -1,31 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import type { ChatMessage } from "@/types/chat"
 import { useChatConnection } from "@/hooks/use-chat-connection"
 import { useNotifications } from "@/hooks/use-notifications"
 import { useSystemMessage } from "@/hooks/use-system-message"
+import { useKeyboardVisibility } from "@/hooks/use-keyboard-visibility"
 import { LoginScreen } from "@/components/chat/login-screen"
 import { ChatHeader } from "@/components/chat/chat-header"
 import { MessageList } from "@/components/chat/message-list"
 import { MessageInput } from "@/components/chat/message-input"
 import { PartnerSidebar } from "@/components/chat/partner-sidebar"
 import { NotificationList } from "@/components/chat/notification-list"
-
-// Add this near the top of the file, after imports
-declare global {
-  interface Window {
-    originalWindowHeight?: number
-  }
-}
-
-interface InAppNotification {
-  id: string
-  type: "success" | "warning" | "error" | "info"
-  message: string
-  timestamp: number
-  key?: string
-}
 
 export default function ChatPage() {
   // State
@@ -34,11 +20,11 @@ export default function ChatPage() {
   const [username, setUsername] = useState("")
   const [partnerName, setPartnerName] = useState<string | null>(null)
   const [isWaitingForPartner, setIsWaitingForPartner] = useState(false)
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
 
   // Custom hooks
   const { notifications, addNotification, removeNotification } = useNotifications()
   const { systemMessage, updateSystemMessage } = useSystemMessage()
+  const isKeyboardVisible = useKeyboardVisibility()
 
   // Handle WebSocket messages
   const handleMessage = (message: ChatMessage) => {
@@ -100,50 +86,6 @@ export default function ChatPage() {
     },
     onWaitingChange: setIsWaitingForPartner,
   })
-
-  // Handle keyboard visibility on mobile
-  useEffect(() => {
-    // More reliable keyboard detection
-    const detectKeyboard = () => {
-      // Store original window height on first load
-      if (!window.originalWindowHeight) {
-        window.originalWindowHeight = window.innerHeight
-      }
-
-      // Consider keyboard visible if height is significantly reduced
-      const heightReduction = window.originalWindowHeight - window.innerHeight
-      const isKeyboard = heightReduction > 150 // Threshold for keyboard
-
-      if (isKeyboardVisible !== isKeyboard) {
-        setIsKeyboardVisible(isKeyboard)
-
-        // When keyboard appears/disappears, prevent unwanted scrolling
-        if (isKeyboard) {
-          // Lock body scroll position
-          document.body.style.overflow = "hidden"
-          document.body.style.position = "fixed"
-          document.body.style.width = "100%"
-        } else {
-          // Restore normal scrolling
-          document.body.style.overflow = ""
-          document.body.style.position = ""
-        }
-      }
-    }
-
-    // Listen for resize events which happen when keyboard appears/disappears
-    window.addEventListener("resize", detectKeyboard)
-
-    // Initial check
-    detectKeyboard()
-
-    return () => {
-      window.removeEventListener("resize", detectKeyboard)
-      // Restore normal scrolling on unmount
-      document.body.style.overflow = ""
-      document.body.style.position = ""
-    }
-  }, [isKeyboardVisible])
 
   // Handle connection
   const handleConnect = (usernameInput: string) => {
@@ -214,9 +156,10 @@ export default function ChatPage() {
     )
   }
 
-  // Otherwise, show chat interface
+  // Otherwise, show chat interface with WhatsApp-like layout
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {/* Header - not fixed, part of the flex layout */}
       <ChatHeader
         username={username}
         partnerName={partnerName}
@@ -227,8 +170,11 @@ export default function ChatPage() {
         onClearChat={handleClearChat}
       />
 
+      {/* Main content area - flex layout */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-col w-full h-full">
+        {/* Chat area - flex column with message list and input */}
+        <div className="flex flex-col w-full h-full overflow-hidden">
+          {/* Message list - will automatically adjust height when keyboard appears */}
           <MessageList
             messages={messages}
             username={username}
@@ -236,6 +182,7 @@ export default function ChatPage() {
             isKeyboardVisible={isKeyboardVisible}
           />
 
+          {/* Message input - not fixed, part of the flex layout */}
           <MessageInput
             onSendMessage={handleSendMessage}
             isConnected={isConnected}
@@ -243,6 +190,7 @@ export default function ChatPage() {
           />
         </div>
 
+        {/* Sidebar - only visible on desktop */}
         <PartnerSidebar
           username={username}
           partnerName={partnerName}
@@ -252,8 +200,10 @@ export default function ChatPage() {
         />
       </div>
 
+      {/* Notifications */}
       <NotificationList notifications={notifications} onRemoveNotification={removeNotification} />
 
+      {/* Footer */}
       <div className="py-2 text-center text-sm text-muted-foreground bg-card border-t border-border">
         Made with ❤️ by Ankit Panchal
       </div>
