@@ -21,6 +21,27 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
     }
   }, [messages])
 
+  // iOS-specific fix for scrolling issues when keyboard appears
+  useEffect(() => {
+    // Only run in browser environment
+    if (typeof window === "undefined") return
+
+    // Check if device is iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+
+    if (isIOS && messageListRef.current) {
+      // When keyboard visibility changes on iOS
+      if (isKeyboardVisible) {
+        // Add a small delay to ensure layout has adjusted
+        setTimeout(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "auto" })
+          }
+        }, 300)
+      }
+    }
+  }, [isKeyboardVisible])
+
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden">
       {/* System message banner */}
@@ -37,6 +58,9 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
         style={{
           overscrollBehavior: "contain", // Prevents scroll chaining
           WebkitOverflowScrolling: "touch", // Smooth scrolling on iOS
+          // iOS-specific styles
+          position: "relative", // Helps with iOS scrolling
+          zIndex: 1, // Ensures content is above other elements
         }}
       >
         <div className="space-y-4">
@@ -45,7 +69,7 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
             .map((msg, index) => (
               <div key={index} className={`flex ${msg.sender === username ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
+                  className={`max-w-[70%] rounded-lg p-3 ${
                     msg.sender === username
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-secondary-foreground"
@@ -53,7 +77,14 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
                 >
                   {msg.sender !== username && <div className="font-semibold text-xs mb-1">{msg.sender}</div>}
                   {msg.isGif ? (
-                    <img src={msg.content || "/placeholder.svg"} alt="GIF" className="rounded-md max-w-full h-auto" />
+                    <div className="max-w-full overflow-hidden rounded">
+                      <img
+                        src={msg.content || "/placeholder.svg"}
+                        alt="GIF"
+                        className="max-w-full h-auto max-h-32 object-contain"
+                        loading="lazy"
+                      />
+                    </div>
                   ) : (
                     <div>{msg.content}</div>
                   )}

@@ -79,7 +79,14 @@ export function useChatConnection({ onMessage, onConnectionChange, onWaitingChan
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data)
-          onMessage(message)
+
+          // Pre-process the message to prevent setting yourself as partner
+          const processedMessage = preprocessMessage(message, usernameRef.current)
+
+          // Only forward the message if it's valid
+          if (processedMessage) {
+            onMessage(processedMessage)
+          }
         } catch (error) {
           console.error("Error processing received message:", error)
         }
@@ -100,6 +107,59 @@ export function useChatConnection({ onMessage, onConnectionChange, onWaitingChan
       onWaitingChange(false)
       return false
     }
+  }
+
+  // Helper function to preprocess messages and filter out invalid partner assignments
+  const preprocessMessage = (message: ChatMessage, currentUsername: string): ChatMessage | null => {
+    // For USERS type messages, check if the users array contains only yourself
+    if (message.type === "USERS") {
+      if (message.users) {
+        // If there's only one user and it's you, don't process this message
+        if (message.users.length === 1 && message.users[0] === currentUsername) {
+          console.warn("Received USERS message with only current user", message)
+          return null
+        }
+
+        // If there are two users but one is not you (it's a duplicate of your name from server)
+        if (
+          (message.users.length === 2 && message.users[0] === message.users[1]) ||
+          (message.users[0] === currentUsername && message.users[1] === currentUsername) ||
+          message.users.every((user) => user === currentUsername)
+        ) {
+          console.warn("Received USERS message with duplicate usernames", message)
+          return null
+        }
+
+        // Create a new users array without your own username
+        const filteredUsers = message.users.filter((user) => user !== currentUsername)
+
+        // If after filtering there are no users left, don't process this message
+        if (filteredUsers.length === 0) {
+          console.warn("After filtering, no users remain in USERS message", message)
+          return null
+        }
+
+        // Return a modified message with filtered users
+        return {
+          ...message,
+          users: filteredUsers,
+        }
+      }
+    }
+
+    // For PARTNER_CONNECTED messages, check if the partner is yourself
+    if (message.type === "PARTNER_CONNECTED") {
+      const partnerUsername = message.content.replace("You are now chatting with ", "")
+
+      // If the partner name is the same as your username, don't process this message
+      if (partnerUsername === currentUsername) {
+        console.warn("Received PARTNER_CONNECTED message with current user as partner", message)
+        return null
+      }
+    }
+
+    // For all other message types, return as is
+    return message
   }
 
   const disconnect = () => {

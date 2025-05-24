@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { ChatMessage } from "@/types/chat"
 import { useChatConnection } from "@/hooks/use-chat-connection"
 import { useNotifications } from "@/hooks/use-notifications"
@@ -30,11 +30,12 @@ export default function ChatPage() {
   const handleMessage = (message: ChatMessage) => {
     if (message.type === "USERS") {
       // For 1-on-1 chat, we'll use this to determine if we have a partner
-      if (message.users && message.users.length === 2) {
-        const partner = message.users.find((user: string) => user !== username)
+      if (message.users && message.users.length > 0) {
+        // The message.users array should already be filtered to exclude the current user
+        const partner = message.users[0]
 
-        if (partner && !partnerName) {
-          // Only update if we don't already have a partner
+        if (partner && partner !== username) {
+          // Only update if the partner is not ourselves
           setPartnerName(partner)
           setIsWaitingForPartner(false)
           addNotification("success", `Now chatting with ${partner}`)
@@ -71,6 +72,15 @@ export default function ChatPage() {
       updateSystemMessage(message.content)
     }
   }
+
+  // Effect to prevent setting yourself as partner
+  useEffect(() => {
+    if (partnerName === username && username !== "") {
+      console.warn("Detected self as partner, resetting partner name")
+      setPartnerName(null)
+      setIsWaitingForPartner(true)
+    }
+  }, [partnerName, username])
 
   // Initialize chat connection
   const { isConnecting, connect, disconnect, findNewPartner, sendMessage } = useChatConnection({
@@ -209,4 +219,4 @@ export default function ChatPage() {
       </div>
     </div>
   )
-}
+}  
