@@ -35,32 +35,57 @@ export default function ChatPage() {
     }
   }, [partnerName, username])
 
-  // Mobile scroll fix - prevent header displacement when sending messages
+  // Mobile viewport fix - prevent input area from moving
   useEffect(() => {
-    // Only run on mobile devices
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+    if (isMobile) {
+      // Set viewport meta tag for better mobile handling
+      let viewportMeta = document.querySelector('meta[name="viewport"]')
+      if (!viewportMeta) {
+        viewportMeta = document.createElement("meta")
+        viewportMeta.setAttribute("name", "viewport")
+        document.head.appendChild(viewportMeta)
+      }
+      viewportMeta.setAttribute(
+        "content",
+        "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
+      )
+
+      // Prevent elastic scrolling
+      const preventElasticScroll = (e: TouchEvent) => {
+        if (e.touches.length > 1) return
+
+        const target = e.target as HTMLElement
+        const isScrollable = target.closest("[data-message-list]")
+
+        if (!isScrollable) {
+          e.preventDefault()
+        }
+      }
+
+      document.addEventListener("touchmove", preventElasticScroll, { passive: false })
+
+      return () => {
+        document.removeEventListener("touchmove", preventElasticScroll)
+      }
+    }
+  }, [])
+
+  // Handle new messages with better mobile support
+  useEffect(() => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
     if (isMobile && messages.length > 0) {
-      // Prevent any automatic scrolling that might move the input area
-      const preventScroll = (e: Event) => {
-        e.preventDefault()
-      }
-
-      // Small delay to ensure message is rendered before scrolling
+      // Scroll messages without affecting input position
       const timeoutId = setTimeout(() => {
-        // Find the message list container and scroll to bottom
         const messageContainer = document.querySelector("[data-message-list]")
         if (messageContainer) {
           messageContainer.scrollTop = messageContainer.scrollHeight
         }
+      }, 50)
 
-        // Ensure the page doesn't scroll and input stays in position
-        window.scrollTo(0, 0)
-      }, 30) // Reduced delay for faster response
-
-      return () => {
-        clearTimeout(timeoutId)
-      }
+      return () => clearTimeout(timeoutId)
     }
   }, [messages.length])
 

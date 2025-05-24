@@ -32,38 +32,25 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
 
   // iOS-specific fix for scrolling issues when keyboard appears
   useEffect(() => {
-    // Only run in browser environment
     if (typeof window === "undefined") return
 
-    // Check if device is mobile
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
     if (isMobile && messageListRef.current) {
-      // When keyboard visibility changes on mobile
       if (isKeyboardVisible) {
-        // Ensure the message list scrolls but doesn't affect input position
+        // When keyboard appears, just scroll the message list
         setTimeout(() => {
-          if (messagesEndRef.current && messageListRef.current) {
-            // Scroll to bottom without affecting the overall page scroll
-            messageListRef.current.scrollTop = messageListRef.current.scrollHeight
-
-            // Lock the page scroll position
-            document.body.style.position = "fixed"
-            document.body.style.top = "0px"
-            document.body.style.width = "100%"
-          }
-        }, 50)
-      } else {
-        // When keyboard hides, restore normal scrolling
-        setTimeout(() => {
-          document.body.style.position = ""
-          document.body.style.top = ""
-          document.body.style.width = ""
-
           if (messagesEndRef.current && messageListRef.current) {
             messageListRef.current.scrollTop = messageListRef.current.scrollHeight
           }
         }, 100)
+      } else {
+        // When keyboard hides, ensure we're still at the bottom
+        setTimeout(() => {
+          if (messagesEndRef.current && messageListRef.current) {
+            messageListRef.current.scrollTop = messageListRef.current.scrollHeight
+          }
+        }, 300)
       }
     }
   }, [isKeyboardVisible])
