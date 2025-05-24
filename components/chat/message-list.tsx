@@ -14,10 +14,19 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageListRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive - improved for mobile
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      // Use requestAnimationFrame for smoother scrolling on mobile
+      requestAnimationFrame(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+            inline: "nearest",
+          })
+        }
+      })
     }
   }, [messages])
 
@@ -26,16 +35,24 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
     // Only run in browser environment
     if (typeof window === "undefined") return
 
-    // Check if device is iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+    // Check if device is mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-    if (isIOS && messageListRef.current) {
-      // When keyboard visibility changes on iOS
+    if (isMobile && messageListRef.current) {
+      // When keyboard visibility changes on mobile
       if (isKeyboardVisible) {
         // Add a small delay to ensure layout has adjusted
         setTimeout(() => {
-          if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: "auto" })
+          if (messagesEndRef.current && messageListRef.current) {
+            // Scroll to bottom without animation to prevent header displacement
+            messageListRef.current.scrollTop = messageListRef.current.scrollHeight
+          }
+        }, 100)
+      } else {
+        // When keyboard hides, ensure we're still at the bottom
+        setTimeout(() => {
+          if (messagesEndRef.current && messageListRef.current) {
+            messageListRef.current.scrollTop = messageListRef.current.scrollHeight
           }
         }, 300)
       }
@@ -54,13 +71,18 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
       {/* Message list - using a simple div with overflow-auto */}
       <div
         ref={messageListRef}
+        data-message-list
         className="flex-1 overflow-y-auto p-4 pb-6"
         style={{
           overscrollBehavior: "contain", // Prevents scroll chaining
           WebkitOverflowScrolling: "touch", // Smooth scrolling on iOS
-          // iOS-specific styles
-          position: "relative", // Helps with iOS scrolling
-          zIndex: 1, // Ensures content is above other elements
+          // Mobile-specific styles to prevent header displacement
+          position: "relative",
+          zIndex: 1,
+          // Prevent elastic scrolling on iOS that can cause header issues
+          overscrollBehaviorY: "contain",
+          // Ensure consistent scrolling behavior
+          scrollBehavior: "auto",
         }}
       >
         <div className="space-y-4">

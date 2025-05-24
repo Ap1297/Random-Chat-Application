@@ -41,10 +41,22 @@ export function MessageInput({ onSendMessage, isConnected, isWaitingForPartner }
       onSendMessage(messageInput)
       setMessageInput("")
 
-      // Focus the input after sending
-      setTimeout(() => {
-        inputRef.current?.focus()
-      }, 0)
+      // Mobile-specific: prevent viewport jumping
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+      if (isMobile) {
+        // Prevent the input from losing focus immediately on mobile
+        setTimeout(() => {
+          inputRef.current?.focus()
+          // Ensure scroll position is maintained
+          window.scrollTo(0, 0)
+        }, 100)
+      } else {
+        // Focus the input after sending on desktop
+        setTimeout(() => {
+          inputRef.current?.focus()
+        }, 0)
+      }
     }
   }
 

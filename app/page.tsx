@@ -26,6 +26,34 @@ export default function ChatPage() {
   const { systemMessage, updateSystemMessage } = useSystemMessage()
   const isKeyboardVisible = useKeyboardVisibility()
 
+  // Effect to prevent setting yourself as partner
+  useEffect(() => {
+    if (partnerName === username && username !== "") {
+      console.warn("Detected self as partner, resetting partner name")
+      setPartnerName(null)
+      setIsWaitingForPartner(true)
+    }
+  }, [partnerName, username])
+
+  // Mobile scroll fix - prevent header displacement when sending messages
+  useEffect(() => {
+    // Only run on mobile devices
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+    if (isMobile && messages.length > 0) {
+      // Small delay to ensure message is rendered before scrolling
+      const timeoutId = setTimeout(() => {
+        // Find the message list container and scroll to bottom
+        const messageContainer = document.querySelector("[data-message-list]")
+        if (messageContainer) {
+          messageContainer.scrollTop = messageContainer.scrollHeight
+        }
+      }, 50)
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [messages.length]) // Only trigger when message count changes
+
   // Handle WebSocket messages
   const handleMessage = (message: ChatMessage) => {
     if (message.type === "USERS") {
@@ -72,15 +100,6 @@ export default function ChatPage() {
       updateSystemMessage(message.content)
     }
   }
-
-  // Effect to prevent setting yourself as partner
-  useEffect(() => {
-    if (partnerName === username && username !== "") {
-      console.warn("Detected self as partner, resetting partner name")
-      setPartnerName(null)
-      setIsWaitingForPartner(true)
-    }
-  }, [partnerName, username])
 
   // Initialize chat connection
   const { isConnecting, connect, disconnect, findNewPartner, sendMessage } = useChatConnection({
@@ -219,4 +238,4 @@ export default function ChatPage() {
       </div>
     </div>
   )
-}  
+}
