@@ -41,20 +41,29 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
     if (isMobile && messageListRef.current) {
       // When keyboard visibility changes on mobile
       if (isKeyboardVisible) {
-        // Add a small delay to ensure layout has adjusted
+        // Ensure the message list scrolls but doesn't affect input position
         setTimeout(() => {
           if (messagesEndRef.current && messageListRef.current) {
-            // Scroll to bottom without animation to prevent header displacement
+            // Scroll to bottom without affecting the overall page scroll
+            messageListRef.current.scrollTop = messageListRef.current.scrollHeight
+
+            // Lock the page scroll position
+            document.body.style.position = "fixed"
+            document.body.style.top = "0px"
+            document.body.style.width = "100%"
+          }
+        }, 50)
+      } else {
+        // When keyboard hides, restore normal scrolling
+        setTimeout(() => {
+          document.body.style.position = ""
+          document.body.style.top = ""
+          document.body.style.width = ""
+
+          if (messagesEndRef.current && messageListRef.current) {
             messageListRef.current.scrollTop = messageListRef.current.scrollHeight
           }
         }, 100)
-      } else {
-        // When keyboard hides, ensure we're still at the bottom
-        setTimeout(() => {
-          if (messagesEndRef.current && messageListRef.current) {
-            messageListRef.current.scrollTop = messageListRef.current.scrollHeight
-          }
-        }, 300)
       }
     }
   }, [isKeyboardVisible])

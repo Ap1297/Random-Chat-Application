@@ -41,16 +41,33 @@ export function MessageInput({ onSendMessage, isConnected, isWaitingForPartner }
       onSendMessage(messageInput)
       setMessageInput("")
 
-      // Mobile-specific: prevent viewport jumping
+      // Mobile-specific: prevent viewport jumping and keep input above keyboard
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
       if (isMobile) {
-        // Prevent the input from losing focus immediately on mobile
-        setTimeout(() => {
-          inputRef.current?.focus()
-          // Ensure scroll position is maintained
-          window.scrollTo(0, 0)
-        }, 100)
+        // Prevent any scrolling or viewport changes
+        const currentScrollY = window.scrollY
+        const currentScrollX = window.scrollX
+
+        // Keep the input focused immediately to maintain keyboard position
+        if (inputRef.current) {
+          inputRef.current.focus()
+
+          // Prevent the page from scrolling after focus
+          setTimeout(() => {
+            window.scrollTo(currentScrollX, currentScrollY)
+
+            // Ensure input stays focused and keyboard stays open
+            if (inputRef.current) {
+              inputRef.current.focus()
+            }
+          }, 0)
+
+          // Additional check to maintain position
+          setTimeout(() => {
+            window.scrollTo(currentScrollX, currentScrollY)
+          }, 50)
+        }
       } else {
         // Focus the input after sending on desktop
         setTimeout(() => {
@@ -255,6 +272,22 @@ export function MessageInput({ onSendMessage, isConnected, isWaitingForPartner }
             onKeyDown={handleKeyPress}
             disabled={!isConnected || isWaitingForPartner}
             className="flex-1 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder:text-gray-400 rounded-full h-10"
+            style={{
+              // Prevent iOS zoom and viewport changes
+              fontSize: "16px",
+              // Prevent input from causing layout shifts
+              transform: "translateZ(0)",
+            }}
+            onFocus={(e) => {
+              // Prevent scroll on focus for mobile
+              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent,
+              )
+              if (isMobile) {
+                e.preventDefault()
+                e.target.focus()
+              }
+            }}
           />
 
           <Button

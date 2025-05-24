@@ -41,6 +41,11 @@ export default function ChatPage() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
     if (isMobile && messages.length > 0) {
+      // Prevent any automatic scrolling that might move the input area
+      const preventScroll = (e: Event) => {
+        e.preventDefault()
+      }
+
       // Small delay to ensure message is rendered before scrolling
       const timeoutId = setTimeout(() => {
         // Find the message list container and scroll to bottom
@@ -48,11 +53,16 @@ export default function ChatPage() {
         if (messageContainer) {
           messageContainer.scrollTop = messageContainer.scrollHeight
         }
-      }, 50)
 
-      return () => clearTimeout(timeoutId)
+        // Ensure the page doesn't scroll and input stays in position
+        window.scrollTo(0, 0)
+      }, 30) // Reduced delay for faster response
+
+      return () => {
+        clearTimeout(timeoutId)
+      }
     }
-  }, [messages.length]) // Only trigger when message count changes
+  }, [messages.length])
 
   // Handle WebSocket messages
   const handleMessage = (message: ChatMessage) => {
