@@ -38,56 +38,15 @@ export function MessageInput({ onSendMessage, isConnected, isWaitingForPartner }
 
   const handleSendMessage = () => {
     if (messageInput.trim() && isConnected && !isWaitingForPartner) {
-      // Store the current viewport state
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      onSendMessage(messageInput)
+      setMessageInput("")
 
-      if (isMobile && inputRef.current) {
-        // Get the current input position
-        const inputRect = inputRef.current.getBoundingClientRect()
-        const currentTop = inputRect.top
-
-        // Send the message
-        onSendMessage(messageInput)
-        setMessageInput("")
-
-        // Immediately prevent any layout changes
-        const preventLayoutShift = () => {
-          if (inputRef.current) {
-            // Keep focus to maintain keyboard
-            inputRef.current.focus()
-
-            // Prevent any scrolling
-            document.documentElement.style.overflow = "hidden"
-            document.body.style.overflow = "hidden"
-
-            // Force the input to stay in the same position
-            const newRect = inputRef.current.getBoundingClientRect()
-            if (newRect.top !== currentTop) {
-              window.scrollBy(0, newRect.top - currentTop)
-            }
-          }
+      // Simple focus management - let CSS handle positioning
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
         }
-
-        // Apply immediately and with delays
-        preventLayoutShift()
-        setTimeout(preventLayoutShift, 0)
-        setTimeout(preventLayoutShift, 10)
-        setTimeout(preventLayoutShift, 50)
-        setTimeout(preventLayoutShift, 100)
-
-        // Restore normal overflow after a delay
-        setTimeout(() => {
-          document.documentElement.style.overflow = ""
-          document.body.style.overflow = ""
-        }, 200)
-      } else {
-        // Desktop behavior
-        onSendMessage(messageInput)
-        setMessageInput("")
-        setTimeout(() => {
-          inputRef.current?.focus()
-        }, 0)
-      }
+      }, 0)
     }
   }
 
@@ -288,40 +247,6 @@ export function MessageInput({ onSendMessage, isConnected, isWaitingForPartner }
             className="flex-1 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder:text-gray-400 rounded-full h-10"
             style={{
               fontSize: "16px", // Prevent iOS zoom
-              transform: "translateZ(0)", // Force hardware acceleration
-              position: "relative", // Ensure proper positioning context
-              zIndex: 1000, // High z-index to stay on top
-            }}
-            onFocus={(e) => {
-              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent,
-              )
-              if (isMobile) {
-                // Prevent default focus behavior that might cause scrolling
-                e.preventDefault()
-                e.target.focus()
-
-                // Lock the current scroll position
-                const scrollY = window.scrollY
-                const scrollX = window.scrollX
-
-                setTimeout(() => {
-                  window.scrollTo(scrollX, scrollY)
-                }, 0)
-              }
-            }}
-            onBlur={(e) => {
-              const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent,
-              )
-              if (isMobile) {
-                // Immediately refocus to keep keyboard open
-                setTimeout(() => {
-                  if (inputRef.current) {
-                    inputRef.current.focus()
-                  }
-                }, 0)
-              }
             }}
           />
 

@@ -68,7 +68,7 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
       <div
         ref={messageListRef}
         data-message-list
-        className="flex-1 overflow-y-auto p-4 pb-6"
+        className="flex-1 overflow-y-auto p-4"
         style={{
           overscrollBehavior: "contain", // Prevents scroll chaining
           WebkitOverflowScrolling: "touch", // Smooth scrolling on iOS
@@ -79,6 +79,12 @@ export function MessageList({ messages, username, systemMessage, isKeyboardVisib
           overscrollBehaviorY: "contain",
           // Ensure consistent scrolling behavior
           scrollBehavior: "auto",
+          // Add bottom padding on mobile to account for fixed input
+          paddingBottom:
+            typeof window !== "undefined" &&
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+              ? "80px"
+              : "24px",
         }}
       >
         <div className="space-y-4">

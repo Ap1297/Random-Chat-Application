@@ -235,7 +235,7 @@ export default function ChatPage() {
       />
 
       {/* Main content area - flex layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Chat area - flex column with message list and input */}
         <div className="flex flex-col w-full h-full overflow-hidden">
           {/* Message list - will automatically adjust height when keyboard appears */}
@@ -246,12 +246,40 @@ export default function ChatPage() {
             isKeyboardVisible={isKeyboardVisible}
           />
 
-          {/* Message input - not fixed, part of the flex layout */}
-          <MessageInput
-            onSendMessage={handleSendMessage}
-            isConnected={isConnected}
-            isWaitingForPartner={isWaitingForPartner}
-          />
+          {/* Message input - fixed position on mobile to prevent movement */}
+          <div
+            className="md:relative"
+            style={{
+              // Mobile-specific fixed positioning
+              position:
+                typeof window !== "undefined" &&
+                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                  ? "fixed"
+                  : "relative",
+              bottom:
+                typeof window !== "undefined" &&
+                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                  ? "0"
+                  : "auto",
+              left:
+                typeof window !== "undefined" &&
+                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                  ? "0"
+                  : "auto",
+              right:
+                typeof window !== "undefined" &&
+                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                  ? "0"
+                  : "auto",
+              zIndex: 1000,
+            }}
+          >
+            <MessageInput
+              onSendMessage={handleSendMessage}
+              isConnected={isConnected}
+              isWaitingForPartner={isWaitingForPartner}
+            />
+          </div>
         </div>
 
         {/* Sidebar - only visible on desktop */}
@@ -267,8 +295,18 @@ export default function ChatPage() {
       {/* Notifications */}
       <NotificationList notifications={notifications} onRemoveNotification={removeNotification} />
 
-      {/* Footer */}
-      <div className="py-2 text-center text-sm text-muted-foreground bg-card border-t border-border">
+      {/* Footer - hidden on mobile when keyboard is visible */}
+      <div
+        className="py-2 text-center text-sm text-muted-foreground bg-card border-t border-border"
+        style={{
+          display:
+            typeof window !== "undefined" &&
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) &&
+            isKeyboardVisible
+              ? "none"
+              : "block",
+        }}
+      >
         Made with ❤️ by Ankit Panchal
       </div>
     </div>
